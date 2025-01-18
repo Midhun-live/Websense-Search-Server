@@ -1,3 +1,4 @@
+import os
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, HttpUrl
 import httpx
@@ -16,6 +17,8 @@ except ImportError as e:
     exit(1)
 
 app = FastAPI()
+
+port = os.getenv("PORT", 8000)  # Default to 8000 if the variable is not set
 
 class SearchRequest(BaseModel):
     url: HttpUrl
@@ -163,4 +166,4 @@ async def search(request: SearchRequest):
 
 if __name__ == "_main_":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=port)
