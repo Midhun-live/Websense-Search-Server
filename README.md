@@ -94,3 +94,9 @@ Each result contains:
 
  - 400: Bad Request (e.g., Invalid URL or query).
  - 500: Internal Server Error (e.g., failed to process the request).
+
+# Configuration for FAISS Vector Database
+
+1. **Vector Dimensions:** Ensure that the FAISS index dimension matches the embedding size of your model. For DistilBERT, it is 768.
+2. **Initialization:** The FAISS index is initialized in the backend code. No additional setup is required unless you use a pre-trained FAISS index.
+3. **Reset:** The index is reset for each new search request to avoid overlapping results.
