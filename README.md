@@ -5,9 +5,6 @@ This project provides a web search service that allows users to search for a spe
 
 # Features
 
- - Awesome Readme Templates
- - Awesome README
- - How to write a Good readme
  - Fetches the content of a URL and parses it.
  - Supports searching for specific text or queries within a webpage.
  - Uses BERT-based embeddings (DistilBERT) to compute semantic   
