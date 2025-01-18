@@ -1,4 +1,5 @@
 import os
+import tensorflow as tf
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, HttpUrl
 import httpx
@@ -8,17 +9,19 @@ from transformers import AutoTokenizer, AutoModel
 import torch
 import faiss
 import numpy as np
+from bs4 import BeautifulSoup, Tag
 
-try:
-    from bs4 import BeautifulSoup, Tag
-except ImportError as e:
-    print(f"Error: {e}. Please install all required packages.")
-    print("Run: pip install fastapi uvicorn beautifulsoup4 httpx numpy transformers faiss-cpu")
-    exit(1)
+# Disable cuFFT plugin registration to avoid the error
+os.environ['TF_XLA_FLAGS'] = '--tf_xla_enable_xla_devices=false'
+
+# Enable memory growth for GPU (if you're using a GPU) to avoid memory allocation conflicts
+physical_devices = tf.config.list_physical_devices('GPU')
+for device in physical_devices:
+    tf.config.experimental.set_memory_growth(device, True)
 
 app = FastAPI()
 
-port = os.getenv("PORT", 8000)  # Default to 8000 if the variable is not set
+port = int(os.getenv("PORT", 8000))
 
 class SearchRequest(BaseModel):
     url: HttpUrl
@@ -40,7 +43,6 @@ dimension = 768  # Dimension of the BERT embeddings
 index = faiss.IndexFlatL2(dimension)
 
 def calculate_match_percentage(text: str, query: str) -> float:
-    """Calculate the match percentage for a given text and query."""
     text_lower = text.lower()
     query_lower = query.lower()
     match_count = text_lower.count(query_lower)
@@ -49,14 +51,12 @@ def calculate_match_percentage(text: str, query: str) -> float:
     return min((match_count * query_words / total_words) * 100, 100)
 
 def tokenize_and_vectorize(text: str):
-    """Tokenize and vectorize the input text."""
     inputs = tokenizer(text, return_tensors="pt", truncation=True, padding=True, max_length=500)
     with torch.no_grad():
         outputs = model(**inputs)
     return outputs.last_hidden_state.mean(dim=1).numpy()
 
 def find_specific_matches(soup: BeautifulSoup, query: str) -> List[tuple[str, str, float]]:
-    """Find exact matches in the HTML content and return only the specific matching elements."""
     matches = []
     seen_content: Set[str] = set()
     matched_elements: Set[Tag] = set()
@@ -101,7 +101,6 @@ def find_specific_matches(soup: BeautifulSoup, query: str) -> List[tuple[str, st
 async def health_check():
     return {"status": "ok"}
 
-
 @app.post("/search", response_model=List[SearchResult])
 async def search(request: SearchRequest):
     try:
@@ -112,7 +111,6 @@ async def search(request: SearchRequest):
 
         soup = BeautifulSoup(content, 'html.parser')
         
-
         for script in soup(["script", "style"]):
             script.decompose()
         
@@ -121,17 +119,16 @@ async def search(request: SearchRequest):
         if not matches:
             return []
         
-        
         results = []
-        seen_content = set()  
+        seen_content = set()
+        index.reset()  # Reset the index for each new search
 
         for idx, (text, html, match_percentage) in enumerate(matches):
-          
             normalized_text = ' '.join(text.lower().split())
             
             if normalized_text not in seen_content and match_percentage >= 1:
                 vector = tokenize_and_vectorize(text)
-                index.add(vector)  
+                index.add(vector)
                 results.append(SearchResult(
                     title=f"Exact Match {idx + 1}",
                     content=text,
@@ -139,31 +136,21 @@ async def search(request: SearchRequest):
                     path=str(request.url),
                     matchPercentage=round(match_percentage, 1)
                 ))
-                seen_content.add(normalized_text)  
+                seen_content.add(normalized_text)
 
-        
-        if len(results) <= 10:
-            query_vector = tokenize_and_vectorize(request.query)
-            distances, indices = index.search(query_vector,  len(results)) 
-            ranked_results = [results[i] for i in indices[0] if i < len(results)]
+        query_vector = tokenize_and_vectorize(request.query)
+        num_results = min(10, len(results))
+        distances, indices = index.search(query_vector, num_results)
 
-            return ranked_results 
-       
-        else : 
+        ranked_results = [results[i] for i in indices[0] if i < len(results)]
 
-            query_vector = tokenize_and_vectorize(request.query)
-            distances, indices = index.search(query_vector, 10)  
-
-
-            ranked_results = [results[i] for i in indices[0] if i < len(results)]
-
-            return ranked_results
+        return ranked_results
 
     except httpx.HTTPError as e:
         raise HTTPException(status_code=400, detail=f"Failed to fetch URL: {str(e)}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
 
-if __name__ == "_main_":
+if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=port)
