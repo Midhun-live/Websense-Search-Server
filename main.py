@@ -94,25 +94,30 @@ async def health_check():
 @app.post("/search", response_model=List[SearchResult])
 async def search(request: SearchRequest):
     try:
+        # Fetch the content of the URL
         async with httpx.AsyncClient() as client:
             response = await client.get(str(request.url))
             response.raise_for_status()
             content = response.text
 
+        # Parse the content using BeautifulSoup
         soup = BeautifulSoup(content, 'html.parser')
         
+        # Remove script and style tags to clean the content
         for script in soup(["script", "style"]):
             script.decompose()
         
+        # Find specific matches for the query in the content
         matches = find_specific_matches(soup, request.query)
         
         if not matches:
-            return []
+            return []  # Return empty list if no matches are found
         
         results = []
         seen_content = set()
-        index.reset()  # Reset the index for each new search
+        index.reset()  # Reset the FAISS index for each new search
 
+        # Add matching content to FAISS index and prepare results
         for idx, (text, html, match_percentage) in enumerate(matches):
             normalized_text = ' '.join(text.lower().split())
             
@@ -128,10 +133,12 @@ async def search(request: SearchRequest):
                 ))
                 seen_content.add(normalized_text)
 
+        # Create vector for the query and search for the closest results in FAISS index
         query_vector = tokenize_and_vectorize(request.query)
         num_results = min(10, len(results))
         distances, indices = index.search(query_vector, num_results)
 
+        # Rank results based on FAISS search and return the best ones
         ranked_results = [results[i] for i in indices[0] if i < len(results)]
 
         return ranked_results
