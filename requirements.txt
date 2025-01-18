@@ -48,10 +48,6 @@ opt_einsum==3.4.0
 optree==0.14.0
 packaging==24.2
 pillow==11.1.0
-pinecone==5.4.2
-pinecone-client==5.0.1
-pinecone-plugin-inference==1.1.0
-pinecone-plugin-interface==0.0.7
 propcache==0.2.1
 protobuf==5.29.3
 pydantic==2.10.5
