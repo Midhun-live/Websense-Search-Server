@@ -100,3 +100,9 @@ Each result contains:
 1. **Vector Dimensions:** Ensure that the FAISS index dimension matches the embedding size of your model. For DistilBERT, it is 768.
 2. **Initialization:** The FAISS index is initialized in the backend code. No additional setup is required unless you use a pre-trained FAISS index.
 3. **Reset:** The index is reset for each new search request to avoid overlapping results.
+
+# Screenshot
+<img width="1440" alt="Screenshot 2025-01-18 at 2 59 56 PM" src="https://github.com/user-attachments/assets/e05c8963-5ed1-4e36-9e7e-3a2e1785a75f" />
+
+
+
