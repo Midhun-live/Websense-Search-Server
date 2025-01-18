@@ -1,23 +1,13 @@
 import os
-import tensorflow as tf
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, HttpUrl
 import httpx
 from typing import List, Set
-import re
 from transformers import AutoTokenizer, AutoModel
 import torch
 import faiss
 import numpy as np
 from bs4 import BeautifulSoup, Tag
-
-# Disable cuFFT plugin registration to avoid the error
-os.environ['TF_XLA_FLAGS'] = '--tf_xla_enable_xla_devices=false'
-
-# Enable memory growth for GPU (if you're using a GPU) to avoid memory allocation conflicts
-physical_devices = tf.config.list_physical_devices('GPU')
-for device in physical_devices:
-    tf.config.experimental.set_memory_growth(device, True)
 
 app = FastAPI()
 
